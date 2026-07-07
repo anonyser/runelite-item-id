@@ -6,9 +6,11 @@ Two ways to grab an item's ID without leaving the game:
 in parentheses, e.g. `Wield Dragon dagger (1215)`. Works for inventory, bank, worn and ground items.
 
 **Search panel.** Open the side panel (magnifier icon in the toolbar) and start typing. Matching items
-populate as you type; click one to see its icon, name, ID and current Grand Exchange price. Click the
-ID to copy it. Search covers the tradeable item list, so the hover option is the fallback for anything
-that isn't tradeable.
+populate as you type; click one to see its icon, name, ID (click to copy), Grand Exchange price and
+high-alch value. Repairable untradeables (fire cape, fighter torso, defenders and the like) also show
+their repair cost. Ornament, Bounty Hunter corrupted and degraded items price as their tradeable base
+and say which item that is. Search covers the tradeable item list, so the hover option is the fallback
+for anything that isn't tradeable.
 
 Display only: it just surfaces information the game already knows and changes nothing else.
 

@@ -9,6 +9,7 @@ import java.awt.image.BufferedImage;
 import javax.inject.Inject;
 import net.runelite.api.MenuEntry;
 import net.runelite.api.events.MenuEntryAdded;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.game.ItemManager;
@@ -34,6 +35,9 @@ public class ItemIdPlugin extends Plugin
 	private ItemManager itemManager;
 
 	@Inject
+	private ClientThread clientThread;
+
+	@Inject
 	private ClientToolbar clientToolbar;
 
 	private ItemLookupPanel panel;
@@ -48,7 +52,7 @@ public class ItemIdPlugin extends Plugin
 	@Override
 	protected void startUp()
 	{
-		panel = new ItemLookupPanel(itemManager);
+		panel = new ItemLookupPanel(itemManager, clientThread, RepairCosts.load());
 		navButton = NavigationButton.builder()
 			.tooltip("Item lookup")
 			.icon(navIcon())
