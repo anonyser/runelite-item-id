@@ -1,0 +1,101 @@
+# Combination recipes: a GE item made by combining other GE items.
+# Format: result name|component 1|component 2|...   (blank lines and # comments ignored)
+# Names are matched case-insensitively against the game's item names, and every id is resolved
+# from the game at runtime -- a name that doesn't resolve is simply skipped, never guessed.
+# Only verified two-plus-item combinations belong here; add rows as they are confirmed.
+
+# Nightmare staves: base staff + orb
+Volatile nightmare staff|Nightmare staff|Volatile orb
+Harmonised nightmare staff|Nightmare staff|Harmonised orb
+Eldritch nightmare staff|Nightmare staff|Eldritch orb
+
+# Godswords: blade + hilt (and the blade itself from three shards)
+Godsword blade|Godsword shard 1|Godsword shard 2|Godsword shard 3
+Armadyl godsword|Godsword blade|Armadyl hilt
+Bandos godsword|Godsword blade|Bandos hilt
+Saradomin godsword|Godsword blade|Saradomin hilt
+Zamorak godsword|Godsword blade|Zamorak hilt
+
+# Visage shields
+Dragonfire shield|Anti-dragon shield|Draconic visage
+Dragonfire ward|Anti-dragon shield|Skeletal visage
+Ancient wyvern shield|Elemental shield|Wyvern visage
+
+# Amulets
+Amulet of blood fury|Amulet of fury|Blood shard
+Amulet of rancour|Amulet of torture|Araxyte fang
+
+# Spirit shields
+Blessed spirit shield|Spirit shield|Holy elixir
+Arcane spirit shield|Blessed spirit shield|Arcane sigil
+Elysian spirit shield|Blessed spirit shield|Elysian sigil
+Spectral spirit shield|Blessed spirit shield|Spectral sigil
+
+# Wards (three shards each)
+Odium ward|Odium shard 1|Odium shard 2|Odium shard 3
+Malediction ward|Malediction shard 1|Malediction shard 2|Malediction shard 3
+
+# More godswords
+Ancient godsword|Godsword blade|Ancient hilt
+
+# Voidwaker (three wilderness-boss pieces)
+Voidwaker|Voidwaker blade|Voidwaker gem|Voidwaker hilt
+
+# Other weapons
+Abyssal tentacle|Abyssal whip|Kraken tentacle
+Toxic staff (uncharged)|Staff of the dead|Magic fang
+
+# Shields
+Dragon sq shield|Shield left half|Shield right half
+
+# Infernal tools (dragon tool + smouldering stone)
+Infernal pickaxe|Dragon pickaxe|Smouldering stone
+Infernal axe|Dragon axe|Smouldering stone
+Infernal harpoon|Dragon harpoon|Smouldering stone
+
+# Ancient sceptre variants (Desert Treasure II quartz) - verified on the wiki
+Smoke ancient sceptre|Ancient sceptre|Smoke quartz
+Ice ancient sceptre|Ancient sceptre|Ice quartz
+Blood ancient sceptre|Ancient sceptre|Blood quartz
+Shadow ancient sceptre|Ancient sceptre|Shadow quartz
+
+# Rings
+Brimstone ring|Hydra's eye|Hydra's fang|Hydra's heart
+
+# Revamped wilderness weapons (uncharged, tradeable) - verified on the wiki
+Ursine chainmace (u)|Viggora's chainmace (u)|Claws of Callisto
+Webweaver bow (u)|Craw's bow (u)|Fangs of Venenatis
+Accursed sceptre (u)|Thammaron's sceptre (u)|Skull of Vet'ion
+
+# Magic fang trident (uncharged, tradeable) - verified on the wiki
+Uncharged toxic trident|Uncharged trident|Magic fang
+
+# Mutagen helms (uncharged, tradeable) - magma verified on the wiki, tanzanite same pattern
+Magma helm (uncharged)|Serpentine helm (uncharged)|Magma mutagen
+Tanzanite helm (uncharged)|Serpentine helm (uncharged)|Tanzanite mutagen
+
+# Helms
+Neitiznot faceguard|Helm of neitiznot|Basilisk jaw
+
+# Smithed dragon armour (Dragon Forge)
+Dragon kiteshield|Dragon sq shield|Dragon metal shard|Dragon metal slice
+Dragon platebody|Dragon chainbody|Dragon metal lump|Dragon metal shard
+
+# Wands / capes (Ava's arrows quantity not shown, cost negligible)
+Kodai wand|Master wand|Kodai insignia
+Ava's assembler|Ava's accumulator|Vorkath's head|Mithril arrow
+
+# Multi-part untradeables
+Slayer helmet|Black mask|Spiny helmet|Facemask|Earmuffs|Nose peg|Enchanted gem
+
+# Max capes (base cape + max cape + max hood) - fire and infernal verified; family follows the pattern
+Fire max cape|Fire cape|Max cape|Max hood
+Infernal max cape|Infernal cape|Max cape|Max hood
+Assembler max cape|Ava's assembler|Max cape|Max hood
+Masori assembler max cape|Masori assembler|Max cape|Max hood
+Imbued saradomin max cape|Imbued saradomin cape|Max cape|Max hood
+Imbued guthix max cape|Imbued guthix cape|Max cape|Max hood
+Imbued zamorak max cape|Imbued zamorak cape|Max cape|Max hood
+
+# Necklaces
+Bonecrusher necklace|Bonecrusher|Dragonbone necklace|Hydra tail

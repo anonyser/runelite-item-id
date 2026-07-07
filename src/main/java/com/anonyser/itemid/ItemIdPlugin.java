@@ -1,5 +1,6 @@
 package com.anonyser.itemid;
 
+import com.google.gson.Gson;
 import com.google.inject.Provides;
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -7,7 +8,9 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import javax.inject.Inject;
 import javax.swing.SwingUtilities;
 import net.runelite.api.Client;
@@ -17,11 +20,14 @@ import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
+import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.game.ItemManager;
+import net.runelite.client.game.ItemStats;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
+import okhttp3.OkHttpClient;
 
 @PluginDescriptor(
 	name = "Item ID and Lookup",
@@ -48,6 +54,15 @@ public class ItemIdPlugin extends Plugin
 	@Inject
 	private ClientToolbar clientToolbar;
 
+	@Inject
+	private ConfigManager configManager;
+
+	@Inject
+	private OkHttpClient okHttpClient;
+
+	@Inject
+	private Gson gson;
+
 	private ItemLookupPanel panel;
 	private NavigationButton navButton;
 
@@ -60,7 +75,8 @@ public class ItemIdPlugin extends Plugin
 	@Override
 	protected void startUp()
 	{
-		panel = new ItemLookupPanel(itemManager, clientThread, RepairCosts.load());
+		panel = new ItemLookupPanel(itemManager, clientThread, RepairCosts.load(), config,
+			new WikiDescription(okHttpClient, gson));
 		navButton = NavigationButton.builder()
 			.tooltip("Item lookup")
 			.icon(navIcon())
@@ -69,12 +85,24 @@ public class ItemIdPlugin extends Plugin
 			.build();
 		clientToolbar.addNavigation(navButton);
 
-		// Build the searchable item index off the client thread, then hand it to the panel.
+		// Build the searchable item index off the client thread, resolve the combination recipes to
+		// ids from it, then hand both to the panel.
 		final ItemLookupPanel p = panel;
+		final Recipes recipeData = Recipes.load();
 		clientThread.invoke(() ->
 		{
 			final List<ItemLookupPanel.Item> index = buildItemIndex();
-			SwingUtilities.invokeLater(() -> p.setItemIndex(index));
+			final Map<String, Integer> nameToId = new HashMap<>();
+			for (ItemLookupPanel.Item it : index)
+			{
+				nameToId.putIfAbsent(it.lower, it.id);
+			}
+			final Map<Integer, int[]> recipes = recipeData.resolve(nameToId);
+			SwingUtilities.invokeLater(() ->
+			{
+				p.setRecipes(recipes);
+				p.setItemIndex(index);
+			});
 		});
 	}
 
@@ -95,7 +123,11 @@ public class ItemIdPlugin extends Plugin
 			{
 				continue;
 			}
-			list.add(new ItemLookupPanel.Item(id, name));
+			// A GE buy limit (static stats data, unlike the async price feed) means the item is
+			// actually on the GE -- this is what tells the real item from LMS/beta look-alikes.
+			final ItemStats st = itemManager.getItemStats(id);
+			final boolean onGe = st != null && st.getGeLimit() > 0;
+			list.add(new ItemLookupPanel.Item(id, name, c.isTradeable(), onGe));
 		}
 		return list;
 	}
@@ -106,6 +138,20 @@ public class ItemIdPlugin extends Plugin
 		clientToolbar.removeNavigation(navButton);
 		navButton = null;
 		panel = null;
+	}
+
+	@Subscribe
+	public void onConfigChanged(ConfigChanged event)
+	{
+		// "Open item search panel" acts as a button: opens the side panel, then unticks itself.
+		if (ItemIdConfig.GROUP.equals(event.getGroup())
+			&& "openSearchPanel".equals(event.getKey())
+			&& config.openSearchPanel()
+			&& navButton != null)
+		{
+			clientToolbar.openPanel(navButton);
+			configManager.setConfiguration(ItemIdConfig.GROUP, "openSearchPanel", false);
+		}
 	}
 
 	@Subscribe
