@@ -1,11 +1,16 @@
-# Item ID
+# Item ID and Lookup
 
-Adds each item's ID in parentheses to its hover text, so hovering an item shows something like
-`Wield Dragon dagger (1215)`. Handy for grabbing an item ID without looking it up on the wiki.
+Two ways to grab an item's ID without leaving the game:
 
-One toggle in the settings, **Item ID on hover**, turns it on or off. It works for inventory, bank,
-worn and ground items. Display only: it just appends the ID the game already knows and changes
-nothing else.
+**On hover.** With **Item ID on hover** turned on (in the settings), each item's hover text gets its ID
+in parentheses, e.g. `Wield Dragon dagger (1215)`. Works for inventory, bank, worn and ground items.
+
+**Search panel.** Open the side panel (magnifier icon in the toolbar) and start typing. Matching items
+populate as you type; click one to see its icon, name, ID and current Grand Exchange price. Click the
+ID to copy it. Search covers the tradeable item list, so the hover option is the fallback for anything
+that isn't tradeable.
+
+Display only: it just surfaces information the game already knows and changes nothing else.
 
 ## Building
 

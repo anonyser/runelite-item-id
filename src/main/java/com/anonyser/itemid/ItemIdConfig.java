@@ -13,7 +13,8 @@ public interface ItemIdConfig extends Config
 		keyName = "itemIdOnHover",
 		name = "Item ID on hover",
 		description = "Add each item's ID in parentheses to its hover text,<br>"
-			+ "for example Dragon dagger (1215)."
+			+ "for example Dragon dagger (1215).<br>"
+			+ "Item search is in the side panel (magnifier icon)."
 	)
 	default boolean itemIdOnHover()
 	{
