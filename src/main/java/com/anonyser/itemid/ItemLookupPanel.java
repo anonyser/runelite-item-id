@@ -3,10 +3,14 @@ package com.anonyser.itemid;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Point;
+import java.awt.Rectangle;
 import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
@@ -25,18 +29,32 @@ import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.ui.components.IconTextField;
 import net.runelite.client.util.AsyncBufferedImage;
-import net.runelite.http.api.item.ItemPrice;
 
 /**
  * The item search side panel: type in the box and matching items populate live; click one to see its
  * icon, name, ID (click the ID to copy it), Grand Exchange price, high-alch value and, for repairable
  * untradeables, the repair cost. Ornament / Bounty Hunter corrupted / degraded items price as their
- * tradeable base and say so. Search covers the tradeable item list, so the hover ID is the fallback
- * for anything that isn't tradeable. All display-only.
+ * tradeable base and say so. Search runs over every item in the game (not just tradeables), off a
+ * name index the plugin builds once. All display-only.
  */
 class ItemLookupPanel extends PluginPanel
 {
 	private static final int MAX_RESULTS = 25;
+
+	/** One searchable item: its id and name, with a lowercased name for matching. */
+	static final class Item
+	{
+		final int id;
+		final String name;
+		final String lower;
+
+		Item(int id, String name)
+		{
+			this.id = id;
+			this.name = name;
+			this.lower = name.toLowerCase();
+		}
+	}
 
 	private final ItemManager itemManager;
 	private final ClientThread clientThread;
@@ -44,6 +62,7 @@ class ItemLookupPanel extends PluginPanel
 
 	private final IconTextField searchBar = new IconTextField();
 	private final JPanel resultsPanel = new JPanel();
+	private List<Item> itemIndex;
 
 	// Detail card, hidden until an item is picked.
 	private final JPanel detailCard = new JPanel(new BorderLayout(8, 0));
@@ -100,6 +119,13 @@ class ItemLookupPanel extends PluginPanel
 		add(resultsPanel, BorderLayout.CENTER);
 	}
 
+	/** EDT: hand the panel the finished item index; the current search is then re-run. */
+	void setItemIndex(List<Item> index)
+	{
+		this.itemIndex = index;
+		refresh();
+	}
+
 	private void buildDetailCard()
 	{
 		detailCard.setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
@@ -149,29 +175,54 @@ class ItemLookupPanel extends PluginPanel
 	private void refresh()
 	{
 		resultsPanel.removeAll();
-		final String query = searchBar.getText() == null ? "" : searchBar.getText().trim();
-		if (!query.isEmpty())
+		final String raw = searchBar.getText();
+		final String query = raw == null ? "" : raw.trim().toLowerCase();
+		if (itemIndex == null)
 		{
-			final List<ItemPrice> matches = itemManager.search(query);
-			if (matches.isEmpty())
+			resultsPanel.add(mutedRow("Loading item list..."));
+		}
+		else if (!query.isEmpty())
+		{
+			final List<Item> found = matches(query);
+			if (found.isEmpty())
 			{
 				resultsPanel.add(mutedRow("No matches"));
 			}
 			else
 			{
-				int shown = 0;
-				for (ItemPrice item : matches)
+				for (Item item : found)
 				{
-					if (shown++ >= MAX_RESULTS)
-					{
-						break;
-					}
-					resultsPanel.add(resultRow(item.getId(), item.getName()));
+					resultsPanel.add(resultRow(item.id, item.name));
 				}
 			}
 		}
 		resultsPanel.revalidate();
 		resultsPanel.repaint();
+	}
+
+	/** Name-substring match, with names that start with the query first, then shortest names. */
+	private List<Item> matches(String query)
+	{
+		final List<Item> starts = new ArrayList<>();
+		final List<Item> contains = new ArrayList<>();
+		for (Item item : itemIndex)
+		{
+			if (item.lower.startsWith(query))
+			{
+				starts.add(item);
+			}
+			else if (item.lower.contains(query))
+			{
+				contains.add(item);
+			}
+		}
+		final Comparator<Item> byName =
+			Comparator.<Item>comparingInt(i -> i.name.length()).thenComparing(i -> i.name);
+		starts.sort(byName);
+		contains.sort(byName);
+		final List<Item> out = new ArrayList<>(starts);
+		out.addAll(contains);
+		return out.size() > MAX_RESULTS ? new ArrayList<>(out.subList(0, MAX_RESULTS)) : out;
 	}
 
 	private JPanel resultRow(int id, String name)
@@ -184,7 +235,9 @@ class ItemLookupPanel extends PluginPanel
 		label.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
 		row.add(label, BorderLayout.CENTER);
 
-		row.addMouseListener(new MouseAdapter()
+		// The label sits over the row, and Swing doesn't bubble mouse events to the parent, so the
+		// listener goes on both. Hover only resets once the cursor truly leaves the row's bounds.
+		final MouseAdapter mouse = new MouseAdapter()
 		{
 			@Override
 			public void mousePressed(MouseEvent e)
@@ -202,10 +255,20 @@ class ItemLookupPanel extends PluginPanel
 			@Override
 			public void mouseExited(MouseEvent e)
 			{
+				if (row.isShowing())
+				{
+					final Rectangle bounds = new Rectangle(row.getLocationOnScreen(), row.getSize());
+					if (bounds.contains(e.getLocationOnScreen()))
+					{
+						return;
+					}
+				}
 				row.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 				label.setForeground(ColorScheme.LIGHT_GRAY_COLOR);
 			}
-		});
+		};
+		row.addMouseListener(mouse);
+		label.addMouseListener(mouse);
 		return row;
 	}
 
@@ -222,8 +285,8 @@ class ItemLookupPanel extends PluginPanel
 		selectedId = id;
 		detailName.setText(name);
 		detailId.setText("ID: " + id);
-		detailGe.setText("GE: " + (itemManager.getItemPrice(id) > 0
-			? gp(itemManager.getItemPrice(id)) : "not on GE"));
+		final int ge = itemManager.getItemPrice(id);
+		detailGe.setText("GE: " + (ge > 0 ? gp(ge) : "not on GE"));
 
 		final Integer repair = repairCosts.cost(name);
 		if (repair != null)

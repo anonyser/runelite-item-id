@@ -6,7 +6,12 @@ import java.awt.Color;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.List;
 import javax.inject.Inject;
+import javax.swing.SwingUtilities;
+import net.runelite.api.Client;
+import net.runelite.api.ItemComposition;
 import net.runelite.api.MenuEntry;
 import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.client.callback.ClientThread;
@@ -30,6 +35,9 @@ public class ItemIdPlugin extends Plugin
 
 	@Inject
 	private ItemIdConfig config;
+
+	@Inject
+	private Client client;
 
 	@Inject
 	private ItemManager itemManager;
@@ -60,6 +68,36 @@ public class ItemIdPlugin extends Plugin
 			.panel(panel)
 			.build();
 		clientToolbar.addNavigation(navButton);
+
+		// Build the searchable item index off the client thread, then hand it to the panel.
+		final ItemLookupPanel p = panel;
+		clientThread.invoke(() ->
+		{
+			final List<ItemLookupPanel.Item> index = buildItemIndex();
+			SwingUtilities.invokeLater(() -> p.setItemIndex(index));
+		});
+	}
+
+	/** Every named, non-noted, non-placeholder item, so search finds untradeables too. */
+	private List<ItemLookupPanel.Item> buildItemIndex()
+	{
+		final int count = client.getItemCount();
+		final List<ItemLookupPanel.Item> list = new ArrayList<>();
+		for (int id = 0; id < count; id++)
+		{
+			final ItemComposition c = itemManager.getItemComposition(id);
+			final String name = c.getName();
+			if (name == null || name.isEmpty() || "null".equalsIgnoreCase(name))
+			{
+				continue;
+			}
+			if (c.getNote() != -1 || c.getPlaceholderTemplateId() != -1)
+			{
+				continue;
+			}
+			list.add(new ItemLookupPanel.Item(id, name));
+		}
+		return list;
 	}
 
 	@Override
