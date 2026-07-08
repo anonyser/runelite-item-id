@@ -13,11 +13,19 @@ import java.util.List;
 import java.util.Map;
 import javax.inject.Inject;
 import javax.swing.SwingUtilities;
+import net.runelite.api.ChatMessageType;
 import net.runelite.api.Client;
+import net.runelite.api.GameState;
 import net.runelite.api.ItemComposition;
 import net.runelite.api.MenuEntry;
+import net.runelite.api.events.GameStateChanged;
+import net.runelite.api.events.GameTick;
 import net.runelite.api.events.MenuEntryAdded;
 import net.runelite.client.callback.ClientThread;
+import net.runelite.client.chat.ChatColorType;
+import net.runelite.client.chat.ChatMessageBuilder;
+import net.runelite.client.chat.ChatMessageManager;
+import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
@@ -63,8 +71,18 @@ public class ItemIdPlugin extends Plugin
 	@Inject
 	private Gson gson;
 
+	@Inject
+	private ChatMessageManager chatMessageManager;
+
 	private ItemLookupPanel panel;
 	private NavigationButton navButton;
+
+	// One-time in-game note after an update ships — sent a few ticks after login, then never again for
+	// this version. Keep in step with the build.gradle version.
+	private static final String PLUGIN_VERSION = "1.0.1";
+	private static final String K_ANNOUNCED = "announcedVersion";
+	private boolean pendingUpdateNote;
+	private int ticksSinceLogin;
 
 	@Provides
 	ItemIdConfig provideConfig(ConfigManager configManager)
@@ -138,6 +156,45 @@ public class ItemIdPlugin extends Plugin
 		clientToolbar.removeNavigation(navButton);
 		navButton = null;
 		panel = null;
+	}
+
+	@Subscribe
+	public void onGameStateChanged(GameStateChanged e)
+	{
+		if (e.getGameState() == GameState.LOGGED_IN)
+		{
+			ticksSinceLogin = 0;
+			pendingUpdateNote = !PLUGIN_VERSION.equals(
+				configManager.getConfiguration(ItemIdConfig.GROUP, K_ANNOUNCED));
+		}
+	}
+
+	@Subscribe
+	public void onGameTick(GameTick e)
+	{
+		// A few ticks in, so the note isn't lost in the login message burst.
+		if (pendingUpdateNote && ++ticksSinceLogin >= 4)
+		{
+			pendingUpdateNote = false;
+			announceUpdate();
+		}
+	}
+
+	/** One in-game chat note per shipped version; a global config key stops it repeating. */
+	private void announceUpdate()
+	{
+		final String message = new ChatMessageBuilder()
+			.append(ChatColorType.HIGHLIGHT)
+			.append("Item ID and Lookup " + PLUGIN_VERSION + ": ")
+			.append(ChatColorType.NORMAL)
+			.append("the search panel now shows the GE price for items it used to mark as not on "
+				+ "GE (the buy limit data it checked doesn't cover every GE item).")
+			.build();
+		chatMessageManager.queue(QueuedMessage.builder()
+			.type(ChatMessageType.GAMEMESSAGE)
+			.runeLiteFormattedMessage(message)
+			.build());
+		configManager.setConfiguration(ItemIdConfig.GROUP, K_ANNOUNCED, PLUGIN_VERSION);
 	}
 
 	@Subscribe

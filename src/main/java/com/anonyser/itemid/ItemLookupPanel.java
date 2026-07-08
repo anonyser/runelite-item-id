@@ -62,7 +62,10 @@ class ItemLookupPanel extends PluginPanel
 		final String name;
 		final String lower;
 		final boolean tradeable;
-		final boolean onGe;
+		// Starts from the static GE buy-limit (built before the price feed loads); corrected to the
+		// live "has a GE price" answer the first time the item's value is fetched. volatile: written on
+		// the client thread, read on the EDT.
+		volatile boolean onGe;
 
 		Item(int id, String name, boolean tradeable, boolean onGe)
 		{
@@ -345,13 +348,14 @@ class ItemLookupPanel extends PluginPanel
 			else
 			{
 				final List<JLabel> values = new ArrayList<>();
+				final List<JLabel> names = new ArrayList<>();
 				for (Item item : found)
 				{
 					final JLabel value = valueLabel();
-					resultsPanel.add(resultRow(item, value));
+					resultsPanel.add(resultRow(item, value, names));
 					values.add(value);
 				}
-				fetchResultValues(gen, found, values);
+				fetchResultValues(gen, found, values, names);
 			}
 		}
 		resultsPanel.revalidate();
@@ -363,19 +367,26 @@ class ItemLookupPanel extends PluginPanel
 	 * repair cost for repairable ones, otherwise a plain not-on-GE/untradeable note. Only applied if
 	 * the search hasn't moved on since (generation guard).
 	 */
-	private void fetchResultValues(int gen, List<Item> items, List<JLabel> labels)
+	private void fetchResultValues(int gen, List<Item> items, List<JLabel> labels, List<JLabel> nameLabels)
 	{
 		clientThread.invoke(() ->
 		{
 			final String[] text = new String[items.size()];
 			final Color[] color = new Color[items.size()];
+			final boolean[] onGe = new boolean[items.size()];
 			for (int i = 0; i < items.size(); i++)
 			{
 				final Item it = items.get(i);
-				if (it.onGe)
+				// "On the GE" really means "has a live GE price". The static buy-limit used to build
+				// the index doesn't cover every GE item (e.g. Ultor ring 28307), so confirm it here
+				// where the price feed is loaded, keeping the buy-limit answer as a floor (never off).
+				final int price = it.tradeable ? itemManager.getItemPrice(it.id) : 0;
+				final boolean isOnGe = it.onGe || price > 0;
+				it.onGe = isOnGe; // correct the shared flag so the row dim and later renders follow
+				onGe[i] = isOnGe;
+				if (isOnGe)
 				{
-					final int p = itemManager.getItemPrice(it.id);
-					text[i] = p > 0 ? abbreviate(p) : "";
+					text[i] = price > 0 ? abbreviate(price) : "";
 					color[i] = GE_VALUE;
 				}
 				else
@@ -396,6 +407,11 @@ class ItemLookupPanel extends PluginPanel
 				{
 					labels.get(i).setText(text[i]);
 					labels.get(i).setForeground(color[i]);
+				}
+				for (int i = 0; i < nameLabels.size() && i < onGe.length; i++)
+				{
+					nameLabels.get(i).setForeground(onGe[i]
+						? ColorScheme.LIGHT_GRAY_COLOR : ColorScheme.MEDIUM_GRAY_COLOR);
 				}
 			});
 		});
@@ -459,18 +475,20 @@ class ItemLookupPanel extends PluginPanel
 		return out.size() > MAX_RESULTS ? new ArrayList<>(out.subList(0, MAX_RESULTS)) : out;
 	}
 
-	private JPanel resultRow(Item item, JLabel value)
+	private JPanel resultRow(Item item, JLabel value, List<JLabel> nameLabels)
 	{
 		final JPanel row = new JPanel(new BorderLayout());
 		row.setBackground(ColorScheme.DARKER_GRAY_COLOR);
 
 		// Items not on the GE are dimmed; the right-hand value (filled in async) is the "which one is
-		// the real item" cue: a GE price for the tradeable one, a repair cost or a note otherwise.
-		final Color base = item.onGe ? ColorScheme.LIGHT_GRAY_COLOR : ColorScheme.MEDIUM_GRAY_COLOR;
+		// the real item" cue: a GE price for the tradeable one, a repair cost or a note otherwise. The
+		// dim reads item.onGe live so the async value fetch can un-dim an item whose on-GE status was
+		// under-reported by the static buy-limit (see fetchResultValues).
 		final JLabel label = new JLabel(item.name);
 		label.setBorder(BorderFactory.createEmptyBorder(5, 6, 5, 6));
-		label.setForeground(base);
+		label.setForeground(item.onGe ? ColorScheme.LIGHT_GRAY_COLOR : ColorScheme.MEDIUM_GRAY_COLOR);
 		label.setOpaque(false);
+		nameLabels.add(label);
 		row.add(label, BorderLayout.CENTER);
 		row.add(value, BorderLayout.EAST);
 
@@ -494,7 +512,7 @@ class ItemLookupPanel extends PluginPanel
 			public void mouseExited(MouseEvent e)
 			{
 				row.setBackground(ColorScheme.DARKER_GRAY_COLOR);
-				label.setForeground(base);
+				label.setForeground(item.onGe ? ColorScheme.LIGHT_GRAY_COLOR : ColorScheme.MEDIUM_GRAY_COLOR);
 			}
 		});
 		return row;
